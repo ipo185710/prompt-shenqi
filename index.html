@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>提示詞神器 | MyPrompt.ai</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="loading" class="loading">載入中…</div>
+
+  <section id="authView" class="auth-shell hidden">
+    <div class="auth-card">
+      <div class="brand-mark">P</div>
+      <h1>提示詞神器</h1>
+      <p>登入後，你的 Prompt 會同步到雲端。</p>
+      <label>電子郵件<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" /></label>
+      <label>密碼<input id="authPassword" type="password" autocomplete="current-password" placeholder="至少 6 個字元" /></label>
+      <div class="auth-actions">
+        <button id="loginBtn" class="primary">登入</button>
+        <button id="signupBtn" class="ghost">建立帳號</button>
+      </div>
+      <div id="authMessage" class="message"></div>
+    </div>
+  </section>
+
+  <div id="appView" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark small">P</div>
+        <div><strong>提示詞神器</strong><small>MyPrompt.ai</small></div>
+      </div>
+      <button class="nav active" data-filter="all"><span>🏠 全部提示詞</span><b id="countAll">0</b></button>
+      <button class="nav" data-filter="favorites"><span>⭐ 我的收藏</span><b id="countFav">0</b></button>
+      <div class="side-title">分類</div>
+      <div id="categoryNav"></div>
+      <div class="sidebar-bottom">
+        <button id="exportBtn" class="ghost full">匯出 JSON</button>
+        <label class="ghost full file-label">匯入 JSON<input id="importFile" type="file" accept="application/json" hidden /></label>
+        <button id="themeBtn" class="ghost full">切換深色模式</button>
+        <button id="logoutBtn" class="danger full">登出</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="search"><span>🔍</span><input id="searchInput" placeholder="搜尋標題、分類、標籤或提示詞…" /></div>
+        <button id="addBtn" class="primary">＋ 新增 Prompt</button>
+      </header>
+
+      <section class="hero">
+        <span class="eyebrow">MY PROMPT CLOUD</span>
+        <h2>你的 AI 提示詞，隨時都在。</h2>
+        <p>收藏、搜尋、分類與跨裝置同步，所有資料都屬於你的帳號。</p>
+      </section>
+
+      <div class="section-head"><h3 id="sectionTitle">全部提示詞</h3><span id="resultCount">0 筆</span></div>
+      <section id="promptGrid" class="grid"></section>
+    </main>
+  </div>
+
+  <div id="editorModal" class="modal hidden">
+    <div class="dialog">
+      <div class="dialog-head"><h3 id="editorTitle">新增 Prompt</h3><button class="icon-btn" data-close="editorModal">×</button></div>
+      <div class="form-grid">
+        <label>標題<input id="fTitle" placeholder="例如：電影感商品照" /></label>
+        <label>分類<input id="fCategory" placeholder="例如：修圖、電商、影片" /></label>
+        <label class="wide">簡短說明<input id="fDescription" placeholder="這個提示詞適合做什麼" /></label>
+        <label class="wide">標籤<input id="fTags" placeholder="商品攝影, 光影, 高級感" /></label>
+        <label class="wide">Prompt 內容<textarea id="fPrompt" placeholder="貼上完整提示詞…"></textarea></label>
+      </div>
+      <div class="dialog-actions">
+        <button id="deleteBtn" class="danger hidden">刪除</button>
+        <button class="ghost" data-close="editorModal">取消</button>
+        <button id="saveBtn" class="primary">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="viewerModal" class="modal hidden">
+    <div class="dialog">
+      <div class="dialog-head"><div><h3 id="viewerTitle"></h3><p id="viewerMeta"></p></div><button class="icon-btn" data-close="viewerModal">×</button></div>
+      <pre id="viewerText" class="prompt-view"></pre>
+      <div class="dialog-actions"><button id="viewerEdit" class="ghost">編輯</button><button id="viewerCopy" class="primary">複製提示詞</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">完成</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
