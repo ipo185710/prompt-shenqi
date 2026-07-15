@@ -68,7 +68,7 @@ button,input,textarea,select{font:inherit}
 <body>
 <div class="app">
 <aside class="sidebar">
-  <div class="brand"><div class="logo">P</div><div><strong>提示詞神器</strong><small>免費直接使用，不必登入</small></div></div>
+  <div class="brand"><div class="logo">P</div><div><strong>提示詞神器</strong><small>Firebase 雲端同步版</small></div></div>
   <button class="navbtn active" data-filter="all"><span>🏠 全部提示詞</span><span class="count" id="countAll"></span></button>
   <button class="navbtn" data-filter="favorites"><span>⭐ 我的收藏</span><span class="count" id="countFav"></span></button>
   <button class="navbtn" data-filter="recent"><span>🕒 最近使用</span><span class="count" id="countRecent"></span></button>
@@ -88,7 +88,7 @@ button,input,textarea,select{font:inherit}
   </div>
   <section class="hero">
     <h1>你的 AI Prompt 資料庫</h1>
-    <p>不用登入即可搜尋、複製、新增、編輯與收藏提示詞。資料儲存在目前瀏覽器本機。</p>
+    <p>不用登入即可搜尋、複製、新增與編輯提示詞。所有提示詞透過 Firebase 雲端即時同步。</p>
     <div class="stats"><span class="pill" id="statPrompts"></span><span class="pill" id="statCats"></span><span class="pill">支援手機與電腦</span></div>
   </section>
   <div class="section-head"><h2 id="sectionTitle">全部提示詞</h2><span id="resultCount"></span></div>
@@ -123,29 +123,47 @@ button,input,textarea,select{font:inherit}
 
 <div class="toast" id="toast">已完成</div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc,
+  onSnapshot, getDocs, writeBatch, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDSLMgCoxggaCTASY5oTUz8cHyDoZDGC_Y",
+  authDomain: "promptshenqi.firebaseapp.com",
+  projectId: "promptshenqi",
+  storageBucket: "promptshenqi.firebasestorage.app",
+  messagingSenderId: "220453906072",
+  appId: "1:220453906072:web:6e1d01cec3cc11ba0312ed",
+  measurementId: "G-7WRTNEJKJX"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const promptsRef = collection(db, "prompts");
+
 const DEFAULT_PROMPTS = [{"id": "scene", "title": "產品融入場景", "category": "修圖", "description": "將產品自然合成到指定背景，統一透視、光影與反射。", "tags": ["場景融合", "商品攝影", "光影"], "favorite": true, "prompt": "對產品圖像進行精細化後期處理。首先精準去除產品的背景，確保產品輪廓完整、細節無損，同時完整保留背景的原始色調。修正畫面中任何不自然的重疊關係與視覺接縫，使產品與背景的銜接乾淨俐落。統一產品與場景的光影邏輯，為產品賦予與環境光一致的自然照明，使其色調、亮度與飽和度與背景完美匹配。在產品與地板的接觸面，呈現真實且柔和的投射陰影。最終實現產品與場景在透視關係、光線方向及反射映射上的完整物理融合，達到商業級攝影作品的呈現標準。"}, {"id": "upscale", "title": "模糊圖片高清", "category": "修圖", "description": "提升清晰度、細節與動態範圍，同時保持原圖不變形。", "tags": ["高清", "4K", "修復"], "favorite": false, "prompt": "基於提供的參考圖片進行嚴格的超高解析度 4K 增強。必須絕對忠實於原始面部結構、比例與身份特徵。在表情、視線、姿勢、相機角度、畫面構圖及透視關係上保持零偏差。服裝、頭髮、皮膚以及背景元素的結構、位置與設計必須完全保持不變。恢復微觀層級細節，呈現自然寫實效果。增強毛孔、細紋、髮絲、睫毛、織物紋理、縫線以及材質邊緣，但不得加入任何風格化處理。色彩科學、白平衡以及整體色調關係必須與原圖完全一致。光線方向、光線強度、對比度及明暗表現必須精確匹配原始圖片，只允許提升清晰度與擴展動態範圍。禁止重新布光。禁止改變物體形狀。"}, {"id": "retouch", "title": "精修產品", "category": "電商", "description": "商業級產品精修，適合電商主圖與商品頁。", "tags": ["產品精修", "白底圖", "電商"], "favorite": true, "prompt": "對產品進行高精度商業級精修處理。產品置於純白背景上，採用正視圖、水平方向視角進行 3D 渲染表現。精準還原產品原始色彩及包裝材質：玻璃部分呈現晶瑩通透質感；塑膠部分保留柔和霧面效果；金屬部件呈現細膩光澤與反射。重點強化產品高光反射與陰影層次，使光影立體感更加鮮明。徹底清除表面的指紋、灰塵與細微瑕疵，讓產品保持全新狀態。瓶身標籤與所有文字資訊保持極致銳利清晰。整體光線柔和均勻，突顯產品精緻感與高級質感。最終成品符合高品質電商主圖的商業視覺標準。"}, {"id": "sketch", "title": "圖片變手繪線稿", "category": "風格", "description": "將產品轉為工業設計黑白線稿與藍圖風格。", "tags": ["手繪", "線稿", "工業設計"], "favorite": false, "prompt": "智慧提取目標物體的空間透視與三維輪廓。一鍵轉換為具有工業設計美感的黑白概念線稿。精準勾勒空氣動力學邊緣、機械傳動部件及裝配接縫。背景自動生成專業流體力學輔助線、透視網格及尺寸標註排版。採用精準的馬克筆筆觸與細緻灰階排線表現截面體積。呈現頂級工業設計師手繪藍圖質感。圖片比例保持 3:4，不變形。輸出解析度 2K。"}, {"id": "remove", "title": "移除物品", "category": "修圖", "description": "完整移除指定物品，並自然修補背景與材質。", "tags": ["移除", "修補", "背景"], "favorite": false, "prompt": "移除圖片中的指定產品，以及其陰影、反光與所有相關投影。產品原本所在位置依照周圍環境自然填補，例如延伸背景圖案、延續材質紋理或還原原始表面。不得留下任何刪除痕跡。畫面中其他所有元素的位置、形狀、色彩與細節必須保持 100% 不變。"}, {"id": "light", "title": "增加光效", "category": "光影特效", "description": "加入科技感霓虹燈光、粒子與高速動態效果。", "tags": ["霓虹", "粒子", "科技感"], "favorite": true, "prompt": "嚴格保持主體外輪廓不變。將背景調整為深色氛圍。把產品外殼轉換為半透明黑透材質，清楚展現內部精密散熱銅管與電路結構。於渦輪吸入口核心注入充滿能量感的霓虹雙色動態光效，例如電光藍搭配核心橘。在風扇周圍生成符合空氣動力學的懸浮發光粒子與高速旋轉光暈拖尾。整體呈現強烈科技感、未來感與高性能硬派競技風格。圖片比例維持 3:4。輸出解析度 2K。"}];
-const STORAGE_KEY = 'prompt_library_pro_data_v1';
 const RECENT_KEY = 'prompt_library_pro_recent_v1';
 const THEME_KEY = 'prompt_library_pro_theme_v1';
 
-let prompts = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || DEFAULT_PROMPTS;
+let prompts = [];
 let recent = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
 let currentFilter = 'all';
 let currentViewId = null;
 let editingId = null;
+let initialSyncDone = false;
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-const uid = () => 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(prompts));
 const saveRecent = () => localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0,30)));
 
 function escapeHtml(str='') {
-  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[m]);
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[m]);
 }
 function toast(msg) {
-  const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1500);
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1700);
 }
 function categories() {
   return [...new Set(prompts.map(p=>p.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
@@ -155,6 +173,35 @@ function closeModal(id) { $('#'+id).classList.remove('open'); document.body.styl
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));
 $$('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m) closeModal(m.id)}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape') $$('.modal.open').forEach(m=>closeModal(m.id))});
+
+function normalizePrompt(id, data) {
+  return {
+    id,
+    title: data.title || '未命名提示詞',
+    category: data.category || '未分類',
+    description: data.description || '',
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    prompt: data.prompt || '',
+    favorite: Boolean(data.favorite),
+    order: Number.isFinite(Number(data.order)) ? Number(data.order) : 9999
+  };
+}
+
+async function seedDefaultsIfEmpty() {
+  const snapshot = await getDocs(promptsRef);
+  if (!snapshot.empty) return;
+  const batch = writeBatch(db);
+  DEFAULT_PROMPTS.forEach((item, index) => {
+    batch.set(doc(db, 'prompts', item.id), {
+      ...item,
+      order: index + 1,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  });
+  await batch.commit();
+  toast('已建立預設提示詞');
+}
 
 function renderNav() {
   $('#countAll').textContent=prompts.length;
@@ -187,12 +234,32 @@ function render() {
       <p>${escapeHtml(p.description||'')}</p>
       <div class="tags">${(p.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
       <div class="card-actions"><button class="open-mini" onclick="openViewer('${p.id}')">查看</button><button class="copy-mini" onclick="copyPrompt('${p.id}')">複製</button></div>
-    </article>`).join(''):`<div class="empty">找不到符合條件的提示詞。</div>`;
+    </article>`).join(''):`<div class="empty">${initialSyncDone ? '找不到符合條件的提示詞。' : '正在連接 Firebase 雲端資料庫…'}</div>`;
 }
-window.toggleFavorite=id=>{const p=prompts.find(x=>x.id===id); if(!p)return; p.favorite=!p.favorite; save(); render();};
-window.copyPrompt=async id=>{const p=prompts.find(x=>x.id===id); if(!p)return; try{await navigator.clipboard.writeText(p.prompt)}catch{const ta=document.createElement('textarea');ta.value=p.prompt;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}; markRecent(id);toast('已複製提示詞');};
+
+window.toggleFavorite=async id=>{
+  const p=prompts.find(x=>x.id===id); if(!p)return;
+  try {
+    await updateDoc(doc(db,'prompts',id), {favorite:!p.favorite,updatedAt:serverTimestamp()});
+  } catch(err) {
+    console.error(err); toast('收藏更新失敗');
+  }
+};
+window.copyPrompt=async id=>{
+  const p=prompts.find(x=>x.id===id); if(!p)return;
+  try{await navigator.clipboard.writeText(p.prompt)}catch{const ta=document.createElement('textarea');ta.value=p.prompt;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}
+  markRecent(id); toast('已複製提示詞');
+};
 function markRecent(id) { recent=[id,...recent.filter(x=>x!==id)].slice(0,30); saveRecent(); renderNav(); }
-window.openViewer=id=>{const p=prompts.find(x=>x.id===id);if(!p)return; currentViewId=id; $('#viewerTitle').textContent=p.title; $('#viewerMeta').textContent=`${p.category||'未分類'} · ${(p.tags||[]).join('、')}`; $('#viewerText').textContent=p.prompt; markRecent(id); openModal('viewerModal');};
+window.openViewer=id=>{
+  const p=prompts.find(x=>x.id===id);if(!p)return;
+  currentViewId=id;
+  $('#viewerTitle').textContent=p.title;
+  $('#viewerMeta').textContent=`${p.category||'未分類'} · ${(p.tags||[]).join('、')}`;
+  $('#viewerText').textContent=p.prompt;
+  markRecent(id);
+  openModal('viewerModal');
+};
 $('#viewerCopy').onclick=()=>copyPrompt(currentViewId);
 $('#viewerEdit').onclick=()=>{closeModal('viewerModal'); openEditor(currentViewId)};
 
@@ -209,32 +276,103 @@ function openEditor(id=null) {
   openModal('editorModal');
 }
 $('#addBtn').onclick=()=>openEditor();
-$('#saveBtn').onclick=()=>{
-  const title=$('#fTitle').value.trim(), category=$('#fCategory').value.trim(), prompt=$('#fPrompt').value.trim();
+
+$('#saveBtn').onclick=async()=>{
+  const title=$('#fTitle').value.trim();
+  const category=$('#fCategory').value.trim();
+  const prompt=$('#fPrompt').value.trim();
   if(!title||!category||!prompt){toast('請填寫標題、分類與 Prompt');return;}
-  const item={id:editingId||uid(),title,category,description:$('#fDescription').value.trim(),tags:$('#fTags').value.split(/[,，]/).map(x=>x.trim()).filter(Boolean),prompt,favorite:editingId?(prompts.find(x=>x.id===editingId)?.favorite||false):false};
-  if(editingId) prompts=prompts.map(x=>x.id===editingId?item:x); else prompts.unshift(item);
-  save(); closeModal('editorModal'); render(); toast(editingId?'已更新 Prompt':'已新增 Prompt');
+  const old=editingId?prompts.find(x=>x.id===editingId):null;
+  const data={
+    title,
+    category,
+    description:$('#fDescription').value.trim(),
+    tags:$('#fTags').value.split(/[,，]/).map(x=>x.trim()).filter(Boolean),
+    prompt,
+    favorite:old?.favorite||false,
+    order:old?.order ?? (prompts.length+1),
+    updatedAt:serverTimestamp()
+  };
+  try {
+    if(editingId) {
+      await updateDoc(doc(db,'prompts',editingId),data);
+    } else {
+      await addDoc(promptsRef,{...data,createdAt:serverTimestamp()});
+    }
+    closeModal('editorModal');
+    toast(editingId?'已同步更新 Prompt':'已同步新增 Prompt');
+  } catch(err) {
+    console.error(err);
+    toast('雲端儲存失敗，請檢查 Firestore 規則');
+  }
 };
-$('#deleteBtn').onclick=()=>{
+
+$('#deleteBtn').onclick=async()=>{
   if(!editingId)return;
-  if(confirm('確定要刪除這個 Prompt 嗎？')){prompts=prompts.filter(x=>x.id!==editingId);recent=recent.filter(x=>x!==editingId);save();saveRecent();closeModal('editorModal');render();toast('已刪除');}
+  if(!confirm('確定要刪除這個 Prompt 嗎？')) return;
+  try {
+    await deleteDoc(doc(db,'prompts',editingId));
+    recent=recent.filter(x=>x!==editingId); saveRecent();
+    closeModal('editorModal');
+    toast('已從雲端刪除');
+  } catch(err) {
+    console.error(err); toast('刪除失敗');
+  }
 };
+
 $('#searchInput').addEventListener('input',render);
 
 $('#exportBtn').onclick=()=>{
   const blob=new Blob([JSON.stringify(prompts,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='prompt-library-backup.json';a.click();URL.revokeObjectURL(a.href);toast('已匯出備份');
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='prompt-library-cloud-backup.json';a.click();URL.revokeObjectURL(a.href);toast('已匯出雲端備份');
 };
 $('#importBtn').onclick=()=>$('#importFile').click();
 $('#importFile').onchange=async e=>{
   const file=e.target.files[0];if(!file)return;
-  try{const data=JSON.parse(await file.text());if(!Array.isArray(data))throw new Error(); prompts=data;save();render();toast('匯入完成')}catch{alert('JSON 格式不正確')} e.target.value='';
+  try {
+    const data=JSON.parse(await file.text());
+    if(!Array.isArray(data)) throw new Error();
+    const batch=writeBatch(db);
+    data.forEach((item,index)=>{
+      const id=item.id || `import_${Date.now()}_${index}`;
+      batch.set(doc(db,'prompts',id),{
+        title:item.title||'未命名提示詞',
+        category:item.category||'未分類',
+        description:item.description||'',
+        tags:Array.isArray(item.tags)?item.tags:[],
+        prompt:item.prompt||'',
+        favorite:Boolean(item.favorite),
+        order:Number(item.order)||index+1,
+        updatedAt:serverTimestamp()
+      },{merge:true});
+    });
+    await batch.commit();
+    toast('已匯入 Firebase 雲端');
+  } catch(err) {
+    console.error(err); alert('JSON 格式不正確或匯入失敗');
+  }
+  e.target.value='';
 };
 $('#themeBtn').onclick=()=>{document.body.classList.toggle('dark');localStorage.setItem(THEME_KEY,document.body.classList.contains('dark')?'dark':'light');};
 if(localStorage.getItem(THEME_KEY)==='dark')document.body.classList.add('dark');
 
 render();
+
+onSnapshot(promptsRef, async snapshot=>{
+  if(snapshot.empty && !initialSyncDone) {
+    initialSyncDone=true;
+    try { await seedDefaultsIfEmpty(); } catch(err) { console.error(err); toast('無法建立預設提示詞'); }
+    return;
+  }
+  prompts=snapshot.docs.map(d=>normalizePrompt(d.id,d.data())).sort((a,b)=>a.order-b.order || a.title.localeCompare(b.title,'zh-Hant'));
+  initialSyncDone=true;
+  render();
+}, err=>{
+  console.error(err);
+  initialSyncDone=true;
+  $('#promptGrid').innerHTML='<div class="empty">Firebase 連線失敗。請確認 Firestore 規則允許讀取。</div>';
+  toast('Firebase 連線失敗');
+});
 </script>
 </body>
 </html>
