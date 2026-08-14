@@ -53,6 +53,10 @@ button,input,textarea,select{font:inherit}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0} .tag{font-size:12px;background:var(--soft);padding:5px 8px;border-radius:999px;color:var(--muted)}
 .card-actions{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap} .card-actions button{flex:1;border:0;border-radius:11px;padding:10px;cursor:pointer;font-weight:800;min-width:92px}
 .copy-mini{background:var(--primary);color:white} .open-mini{background:var(--soft);color:var(--text)} .effect-mini{background:var(--soft);color:var(--text)}
+.card-preview{width:100%;aspect-ratio:4/3;margin:12px 0 14px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--soft);display:grid;place-items:center;cursor:pointer}
+.card-preview img{width:100%;height:100%;object-fit:contain;display:block}
+.card-preview:hover img{transform:scale(1.02);transition:.2s}
+.card-preview-empty{color:var(--muted);font-size:13px;text-align:center;padding:18px;cursor:default}
 .empty{padding:40px;text-align:center;color:var(--muted);background:var(--panel);border:1px dashed var(--line);border-radius:20px;grid-column:1/-1}
 .modal{position:fixed;inset:0;background:rgba(3,7,18,.58);display:none;place-items:center;padding:18px;z-index:50;backdrop-filter:blur(8px)}
 .modal.open{display:grid} .dialog{width:min(820px,100%);max-height:92vh;overflow:auto;background:var(--panel);border-radius:24px;padding:22px;border:1px solid var(--line);box-shadow:0 30px 90px rgba(0,0,0,.28)}
@@ -233,9 +237,12 @@ function render() {
     <article class="card">
       <div class="card-top"><span class="cat">${escapeHtml(p.category||'未分類')}</span><button class="star" onclick="toggleFavorite('${p.id}')">${isFavorite(p.id)?'★':'☆'}</button></div>
       <h3>${escapeHtml(p.title)}</h3>
+      ${p.effectImage
+        ? `<div class="card-preview" onclick="openEffect('${p.id}')" title="點擊放大效果圖"><img src="${escapeHtml(p.effectImage)}" alt="${escapeHtml(p.title)} 效果圖" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\'card-preview-empty\'>效果圖載入失敗</div>'"></div>`
+        : `<div class="card-preview card-preview-empty">尚未設定效果圖</div>`}
       <p>${escapeHtml(p.description||'')}</p>
       <div class="tags">${(p.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
-      <div class="card-actions"><button class="open-mini" onclick="openViewer('${p.id}')">查看</button><button class="copy-mini" onclick="copyPrompt('${p.id}')">複製</button><button class="effect-mini" onclick="openEffect('${p.id}')" title="查看應用後效果圖">🖼️ 效果圖</button></div>
+      <div class="card-actions"><button class="open-mini" onclick="openViewer('${p.id}')">查看</button><button class="copy-mini" onclick="copyPrompt('${p.id}')">複製</button></div>
     </article>`).join(''):`<div class="empty">${initialSyncDone ? '找不到符合條件的提示詞。' : '正在連接 Firebase 雲端資料庫…'}</div>`;
 }
 
