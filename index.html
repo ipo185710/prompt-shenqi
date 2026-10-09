@@ -160,7 +160,7 @@ button,input,textarea,select{font:inherit}
 </div></div>
 
 <div class="modal" id="importModal"><div class="dialog">
-  <div class="dialog-head"><div><h2>批次匯入 Prompt</h2><div class="viewer-meta">貼上 Claude 幫你整理好的匯入資料（JSON 格式），可一次新增多筆。</div></div><button class="close" data-close="importModal">×</button></div>
+  <div class="dialog-head"><div><h2>批次匯入 Prompt</h2><div class="viewer-meta">貼上匯入資料（純文字範本或 JSON 格式皆可），可一次新增多筆；沒填內容的會自動略過。</div></div><button class="close" data-close="importModal">×</button></div>
   <label>匯入資料<textarea id="importText" placeholder='[{"title":"標題","category":"分類","description":"簡短說明","tags":["標籤1","標籤2"],"effectImage":"","prompt":"提示詞內容"}]'></textarea></label>
   <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:12px"><input type="checkbox" id="importSkipDup" checked style="width:auto"> 標題已存在的就跳過（避免重複匯入）</label>
   <div class="viewer-meta" id="importPreview" style="margin-top:12px"></div>
@@ -427,20 +427,44 @@ $('#saveBtn').onclick=async()=>{
 };
 
 // ===== 批次匯入 =====
+// 純文字格式：每筆以「=== 標題」開頭，接著「分類：」「標籤：」「說明：」「效果圖：」，
+// 最後「內容：」之後的所有文字（可多行）都是提示詞。
+function parseTextBlocks(text) {
+  // 第一個 === 之前的說明文字略過；以 ### 開頭的分隔行也略過
+  text = text.slice(text.search(/^\s*===/m)).split(/\r?\n/).filter(l=>!/^\s*#{3,}/.test(l)).join('\n');
+  const blocks = text.split(/^\s*===\s*/m).map(b=>b.trim()).filter(Boolean);
+  return blocks.map(b=>{
+    const lines = b.split(/\r?\n/);
+    const item = { title: lines.shift().trim() };
+    const keys = { '分類':'category', '標籤':'tags', '說明':'description', '效果圖':'effectImage' };
+    while(lines.length){
+      const line = lines.shift();
+      const m = line.match(/^\s*(分類|標籤|說明|效果圖|內容)\s*[：:]\s*(.*)$/);
+      if(!m) continue;
+      if(m[1]==='內容'){ item.prompt = [m[2], ...lines].join('\n').trim(); break; }
+      item[keys[m[1]]] = m[2].trim();
+    }
+    return item;
+  });
+}
 function parseImport(raw) {
   let text = String(raw||'').trim();
   if(!text) throw new Error('請先貼上匯入資料');
   // 容許外層包著 ```json ... ``` 的程式碼區塊
   text = text.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
   let data;
-  try { data = JSON.parse(text); }
-  catch(e) { throw new Error('格式錯誤，無法讀取：'+e.message); }
+  if(/^\s*===/m.test(text) && !/^\s*[\[{]/.test(text)) data = parseTextBlocks(text);
+  else {
+    try { data = JSON.parse(text); }
+    catch(e) { throw new Error('格式錯誤，無法讀取：'+e.message); }
+  }
   if(!Array.isArray(data)) data = Array.isArray(data?.prompts) ? data.prompts : [data];
-  const items = [], errors = [];
+  const items = [], errors = [], blank = [];
   data.forEach((it,i)=>{
     const title = String(it?.title||'').trim();
     const category = String(it?.category||'').trim();
     const prompt = String(it?.prompt||'').trim();
+    if(title && category && !prompt){ blank.push(title); return; }
     if(!title||!category||!prompt){ errors.push(`第 ${i+1} 筆缺少標題、分類或內容`); return; }
     let tags = it.tags;
     if(typeof tags==='string') tags = tags.split(/[,，、]/);
@@ -449,10 +473,10 @@ function parseImport(raw) {
       description: String(it.description||'').trim(),
       effectImage: String(it.effectImage||'').trim() });
   });
-  return { items, errors };
+  return { items, errors, blank };
 }
 function importPlan() {
-  const { items, errors } = parseImport($('#importText').value);
+  const { items, errors, blank } = parseImport($('#importText').value);
   const existing = new Set(prompts.map(p=>p.title.trim()));
   const seen = new Set();
   const skip = $('#importSkipDup').checked;
@@ -461,11 +485,12 @@ function importPlan() {
     if(skip && (existing.has(it.title) || seen.has(it.title))) dup.push(it.title);
     else { toAdd.push(it); seen.add(it.title); }
   });
-  return { toAdd, dup, errors };
+  return { toAdd, dup, errors, blank };
 }
 function showImportPreview(plan) {
   const lines = [`✅ 將新增 ${plan.toAdd.length} 筆`];
   if(plan.toAdd.length) lines.push('　'+plan.toAdd.map(x=>`「${x.title}」`).join('、'));
+  if(plan.blank.length) lines.push(`📝 尚未填內容、先略過 ${plan.blank.length} 筆`);
   if(plan.dup.length) lines.push(`⏭️ 標題重複跳過 ${plan.dup.length} 筆：${plan.dup.join('、')}`);
   if(plan.errors.length) lines.push(`⚠️ 有問題 ${plan.errors.length} 筆：${plan.errors.join('；')}`);
   $('#importPreview').textContent = lines.join('\n');
