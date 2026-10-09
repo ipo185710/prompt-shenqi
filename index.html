@@ -432,7 +432,7 @@ $('#saveBtn').onclick=async()=>{
 function parseTextBlocks(text) {
   // 第一個 === 之前的說明文字略過；以 ### 開頭的分隔行也略過
   text = text.slice(text.search(/^\s*===/m)).split(/\r?\n/).filter(l=>!/^\s*#{3,}/.test(l)).join('\n');
-  const blocks = text.split(/^\s*===\s*/m).map(b=>b.trim()).filter(Boolean);
+  const blocks = text.split(/^[ \t]*===[ \t]*/m).filter(b=>b.trim());
   return blocks.map(b=>{
     const lines = b.split(/\r?\n/);
     const item = { title: lines.shift().trim() };
@@ -464,6 +464,7 @@ function parseImport(raw) {
     const title = String(it?.title||'').trim();
     const category = String(it?.category||'').trim();
     const prompt = String(it?.prompt||'').trim();
+    if(!title && !prompt) return; // 沒用到的空白格，直接略過
     if(title && category && !prompt){ blank.push(title); return; }
     if(!title||!category||!prompt){ errors.push(`第 ${i+1} 筆缺少標題、分類或內容`); return; }
     let tags = it.tags;
